@@ -254,28 +254,67 @@ if (CONFIG_NET)
 	add_nuttx_dir(net net y -D__KERNEL__)
 endif()
 
-# oldconfig helper
-add_custom_target(oldconfig
+###############################################################################
+# NuttX oldconfig
+add_custom_target(nuttx_oldconfig
 	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} oldconfig
-	COMMAND cp ${NUTTX_DIR}/.config ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
 	DEPENDS ${NUTTX_DIR}/.config
 	WORKING_DIRECTORY ${NUTTX_DIR}
 	COMMENT "Running NuttX make oldconfig for ${NUTTX_CONFIG}"
 	USES_TERMINAL
-	)
+)
 
-# olddefconfig helper
-add_custom_target(olddefconfig
-	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} olddefconfig
+# NuttX oldconfig + savedefconfig back to PX4
+add_custom_target(oldconfig
+	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} savedefconfig
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/defconfig ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_oldconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make oldconfig then savedefconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
+)
+
+# NuttX oldconfig + copy uncompressed back to PX4
+add_custom_target(oldconfig_uncompressed
 	COMMAND cp ${NUTTX_DIR}/.config ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_oldconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make oldconfig then saving uncompressed defconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
+)
+
+###############################################################################
+# NuttX olddefconfig
+add_custom_target(nuttx_olddefconfig
+	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} olddefconfig
 	DEPENDS ${NUTTX_DIR}/.config
 	WORKING_DIRECTORY ${NUTTX_DIR}
 	COMMENT "Running NuttX make olddefconfig for ${NUTTX_CONFIG}"
 	USES_TERMINAL
 	)
 
-# menuconfig helper
-add_custom_target(menuconfig
+# NuttX olddefconfig + savedefconfig back to PX4
+add_custom_target(olddefconfig
+	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} savedefconfig
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/defconfig ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_olddefconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make olddefconfig then savedefconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
+)
+
+# NuttX oldconfig + copy uncompressed back to PX4
+add_custom_target(olddefconfig_uncompressed
+	COMMAND cp ${NUTTX_DIR}/.config ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_olddefconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make olddefconfig then saving uncompressed defconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
+)
+
+###############################################################################
+# NuttX menuconfig
+add_custom_target(nuttx_menuconfig
 	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} menuconfig
 	DEPENDS ${NUTTX_DIR}/.config
 	WORKING_DIRECTORY ${NUTTX_DIR}
@@ -283,8 +322,28 @@ add_custom_target(menuconfig
 	USES_TERMINAL
 	)
 
-# qconfig helper
-add_custom_target(qconfig
+# NuttX menuconfig + savedefconfig back to PX4
+add_custom_target(menuconfig
+	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} savedefconfig
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/defconfig ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_menuconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make nuttx_menuconfig then savedefconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
+)
+
+# NuttX menuconfig + copy uncompressed back to PX4
+add_custom_target(nuttx_menuconfig_uncompressed
+	COMMAND cp ${NUTTX_DIR}/.config ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_menuconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make nuttx_menuconfig then saving uncompressed defconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
+)
+
+###############################################################################
+# NuttX qconfig
+add_custom_target(nuttx_qconfig
 	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} qconfig
 	DEPENDS ${NUTTX_DIR}/.config
 	WORKING_DIRECTORY ${NUTTX_DIR}
@@ -292,32 +351,21 @@ add_custom_target(qconfig
 	USES_TERMINAL
 	)
 
-# savedefconfig helper
-add_custom_target(savedefconfig
+# NuttX qconfig + savedefconfig back to PX4
+add_custom_target(qconfig
 	COMMAND make --no-print-directory --silent -C ${NUTTX_DIR} CONFIG_ARCH_BOARD=${PX4_BOARD} savedefconfig
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/defconfig ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
-	DEPENDS ${NUTTX_DIR}/.config
-	COMMENT "Compressing .config and saving back to ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig"
+	DEPENDS nuttx_qconfig
 	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make qconfig then savedefconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
 )
 
-# menuconfig and save
-add_custom_target(menuconfig_save
-	COMMAND
-		${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} -- savedefconfig # this is hacky, but forces menuconfig to run before savedefconfig
-	DEPENDS menuconfig
-)
-
-# oldconfig and save
-add_custom_target(oldconfig_save
-	COMMAND
-		${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} -- savedefconfig # this is hacky, but forces oldconfig to run before savedefconfig
-	DEPENDS oldconfig
-)
-
-# qconfig and save
-add_custom_target(qconfig_save
-	COMMAND
-		${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} -- savedefconfig # this is hacky, but forces qconfig to run before savedefconfig
-	DEPENDS qconfig
+# NuttX qconfig + copy uncompressed back to PX4
+add_custom_target(qconfig_uncompressed
+	COMMAND cp ${NUTTX_DIR}/.config ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/defconfig
+	DEPENDS nuttx_qconfig
+	WORKING_DIRECTORY ${NUTTX_DIR}
+	COMMENT "Running make qconfig then saving uncompressed defconfig for ${NUTTX_CONFIG}"
+	USES_TERMINAL
 )
