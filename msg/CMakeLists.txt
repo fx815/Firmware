@@ -80,6 +80,7 @@ set(msg_files
 	obstacle_distance.msg
 	offboard_control_mode.msg
 	optical_flow.msg
+	optical_flow_tau_theta.msg
 	orbit_status.msg
 	parameter_update.msg
 	ping.msg

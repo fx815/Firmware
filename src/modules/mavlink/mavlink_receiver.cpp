@@ -147,6 +147,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_optical_flow_rad(msg);
 		break;
 
+	case MAVLINK_MSG_ID_OPTICAL_FLOW_TAU_THETA:
+                handle_message_optical_flow_tau_theta(msg);
+                break;
+
 	case MAVLINK_MSG_ID_PING:
 		handle_message_ping(msg);
 		break;
@@ -642,6 +646,27 @@ MavlinkReceiver::handle_message_optical_flow_rad(mavlink_message_t *msg)
 			orb_publish(ORB_ID(distance_sensor), _flow_distance_sensor_pub, &d);
 		}
 	}
+}
+
+void
+MavlinkReceiver::handle_message_optical_flow_tau_theta(mavlink_message_t *msg)
+{
+    mavlink_optical_flow_tau_theta_t optau;
+    mavlink_msg_optical_flow_tau_theta_decode(msg, &optau);
+
+    struct optical_flow_tau_theta_s oftt = {};
+    //memset(&f, 0, sizeof(f));
+
+    oftt.timestamp = hrt_absolute_time();
+    oftt.tau = optau.tau;
+    oftt.theta = optau.theta;
+
+    if (_optical_flow_tau_theta_pub == nullptr) {
+        _optical_flow_tau_theta_pub = orb_advertise(ORB_ID(optical_flow_tau_theta), &oftt);
+
+    } else {
+        orb_publish(ORB_ID(optical_flow_tau_theta), _optical_flow_tau_theta_pub, &oftt);
+    }
 }
 
 void
