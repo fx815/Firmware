@@ -169,6 +169,14 @@ elseif ("${PX4_BOARD}" MATCHES "sitl")
 			PATTERN "*.so"
 		)
 
+	# sitl_gazebo built optical flow plugin
+	install(
+		FILES
+			${PROJECT_SOURCE_DIR}/build/px4_sitl_default/build_gazebo/OpticalFlow/libOpticalFlow.so
+		DESTINATION
+			${PROJECT_NAME}/build/px4_sitl_default/build_gazebo
+		)
+
 	# sitl_gazebo dirs
 	install(
 		DIRECTORY
