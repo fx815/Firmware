@@ -77,9 +77,15 @@ private:
 
     struct vehicle_attitude_setpoint_s _att_sp;
 
+    struct vehicle_control_mode_s _control_mode;
+
+    struct vehicle_status_s _vehicle_status;
+
     orb_advert_t    _att_sp_pub{nullptr};           /**< attitude setpoint publication */
 
     orb_id_t _attitude_setpoint_id{nullptr};
+
+    orb_advert_t _vehicle_control_mode_pub;
 
     int optical_front_sub;
 
@@ -91,11 +97,16 @@ private:
 
     int _params_sub;
 
+    int vehicle_control_mode_sub;
+
+    int vehicle_status_sub;
+
     control::BlockDerivative _h_deriv;
     control::BlockDerivative _vel_z_deriv;
     control::BlockDerivative _xmotion_deriv;
     FlightTasks _flight_tasks;
     PositionControl _positioncontrol;
+
 
     float output_h;//filtered h
     float previous_h; //for fi
@@ -232,6 +243,26 @@ void MulticopterPerchingControl::poll_subscriptions()
              previous_h = output_h;
        }
 
+       orb_check(vehicle_control_mode_sub, &updated);
+       if(updated){
+        orb_copy(ORB_ID(vehicle_control_mode), vehicle_control_mode_sub, &_control_mode);
+       }
+
+       orb_check(vehicle_status_sub, &updated);
+
+       if (updated) {
+            orb_copy(ORB_ID(vehicle_status), vehicle_status_sub, &_vehicle_status);
+
+            // set correct uORB ID, depending on if vehicle is VTOL or not
+            if (!_attitude_setpoint_id) {
+                if (_vehicle_status.is_vtol) {
+                    _attitude_setpoint_id = ORB_ID(mc_virtual_attitude_setpoint);
+
+                } else {
+                    _attitude_setpoint_id = ORB_ID(vehicle_attitude_setpoint);
+                }
+            }
+        }
 }
 
 void MulticopterPerchingControl::run()
@@ -248,11 +279,16 @@ void MulticopterPerchingControl::run()
 
     att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 
+    vehicle_control_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
+
+    vehicle_status_sub = orb_subscribe(ORB_ID(vehicle_status));
+
+    _vehicle_control_mode_pub = orb_advertise(ORB_ID(vehicle_control_mode), &_control_mode);
+
     //orb_set_interval(att_sub, 20); // 50 Hz updates
 
     parameters_update(true);
     poll_subscriptions();
-
     /* one could wait for multiple topics with this technique, just using one here */
     px4_pollfd_struct_t fds[1];
     fds[0].fd = att_sub;
@@ -279,18 +315,16 @@ void MulticopterPerchingControl::run()
             }
         }
 
-       poll_subscriptions();
-       parameters_update(false);
+        poll_subscriptions();
+        parameters_update(false);
         
         //set _dt
         const hrt_abstime time_stamp_current = hrt_absolute_time();
         setDt((time_stamp_current - time_stamp_last_loop) / 1e6f);
         time_stamp_last_loop = time_stamp_current;
 
-
-
-    vehicle_constraints_s constraints = _flight_tasks.getConstraints();
-    _positioncontrol.updateConstraints(constraints);
+        vehicle_constraints_s constraints = _flight_tasks.getConstraints();
+        _positioncontrol.updateConstraints(constraints);
 
     /*if (orb_copy(ORB_ID(vehicle_attitude), att_sub, &att) == PX4_OK && PX4_ISFINITE(att.q[0])) {
                yaw = Eulerf(Quatf(att.q)).psi();
@@ -298,83 +332,117 @@ void MulticopterPerchingControl::run()
                pitch = Eulerf(Quatf(att.q)).theta();
             }*/
     /*thrust in D direction*/
-    float H = -output_h - 0.06f; //compensate for roll and pitch, and add offset
-    float vel_z_sp = k_p.get() * (h_sp.get() - H);//h_sp k_p param;
-    float vel_z = _h_deriv.update(H);
-    float acc_z = _vel_z_deriv.update(vel_z);
-    float vel_err_z = vel_z_sp - vel_z;
-    float thrust_desired_D = k_vel_p.get() * vel_err_z + k_vel_d.get() * acc_z + _thr_int_z - MPC_THR_HOVER.get(); //k_vel_p, k_vel_d
-    float uMax = -MPC_THR_MIN.get();
-    float uMin = -MPC_THR_MAX.get();
-    bool stop_integral_D = (thrust_desired_D >= uMax && vel_err_z >= 0.0f) ||
-                   (thrust_desired_D <= uMin && vel_err_z <= 0.0f);
-    if (!stop_integral_D){
-        _thr_int_z += vel_err_z * k_vel_i.get() * _dt;        //k_vel_i
-        // limit thrust integral
-        _thr_int_z = math::min(fabsf(_thr_int_z), MPC_THR_MAX.get()) * math::sign(_thr_int_z);
-    }
+        if(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PERCH && _control_mode.flag_control_perch_enabled)
+        {
+            bool topic_changed = false;
 
-    _thr_sp(2) = math::constrain(thrust_desired_D, uMin, uMax);
-    
-    /*thrust in perching and non perching direction */
+            if (_control_mode.flag_control_manual_enabled) {
+                _control_mode.flag_control_manual_enabled = false;
+                topic_changed = true;
+            }
+            if (_control_mode.flag_control_attitude_enabled) {
+                _control_mode.flag_control_attitude_enabled = false;
+                topic_changed = true;
+            }
+            if (_control_mode.flag_control_position_enabled) {
+                _control_mode.flag_control_position_enabled = false;
+                topic_changed = true;
+            }
+            if (_control_mode.flag_control_velocity_enabled) {
+                _control_mode.flag_control_velocity_enabled = false;
+                topic_changed = true;
+            }
+            if (!_control_mode.flag_control_acceleration_enabled) {
+                _control_mode.flag_control_acceleration_enabled = true;
+                topic_changed = true;
+            }
+            // publish to vehicle control mode topic if topic is changed
+            if (topic_changed) {
+                orb_publish(ORB_ID(vehicle_control_mode), _vehicle_control_mode_pub, &_control_mode);
+            }
 
-    float motion_err_y = 0 - xmotion;
-    float acc_y = _xmotion_deriv.update(xmotion);
-    float ofd_err = desired_ofd.get() - flow_divergence;
-    // PID-velocity controller for NE-direction.
-        Vector2f thrust_desired_xy;
-        thrust_desired_xy(0) = k_ofd_p.get() * (ofd_err); //kofd_p
-        thrust_desired_xy(1) = k_m_p.get()* motion_err_y + k_m_d.get() * acc_y + _thr_int_y; //k_m_p, k_m_d, k_m_i
+            //PX4_INFO("IM HERE");
+            float H = -output_h - 0.06f; //compensate for roll and pitch, and add offset
+            float vel_z_sp = k_p.get() * (h_sp.get() - H);//h_sp k_p param;
+            float vel_z = _h_deriv.update(H);
+            float acc_z = _vel_z_deriv.update(vel_z);
+            float vel_err_z = vel_z_sp - vel_z;
+            float thrust_desired_D = k_vel_p.get() * vel_err_z + k_vel_d.get() * acc_z + _thr_int_z - MPC_THR_HOVER.get(); //k_vel_p, k_vel_d
+            float uMax = -MPC_THR_MIN.get();
+            float uMin = -MPC_THR_MAX.get();
+            bool stop_integral_D = (thrust_desired_D >= uMax && vel_err_z >= 0.0f) ||
+                           (thrust_desired_D <= uMin && vel_err_z <= 0.0f);
+            if (!stop_integral_D){
+                _thr_int_z += vel_err_z * k_vel_i.get() * _dt;        //k_vel_i
+                // limit thrust integral
+                _thr_int_z = math::min(fabsf(_thr_int_z), MPC_THR_MAX.get()) * math::sign(_thr_int_z);
+            }
 
-        // Get maximum allowed thrust in NE based on tilt and excess thrust.
-        float thrust_max_tilt = fabsf(_thr_sp(2)) * tanf(constraints.tilt);
-        float thrust_max = sqrtf(MPC_THR_MAX.get() * MPC_THR_MAX.get() - _thr_sp(2) * _thr_sp(2));
-        thrust_max = math::min(thrust_max_tilt, thrust_max);
+            _thr_sp(2) = math::constrain(thrust_desired_D, uMin, uMax);
+            
+            /*thrust in perching and non perching direction */
 
-        // Saturate thrust in NE-direction.
-        _thr_sp(0) = thrust_desired_xy(0);
-        _thr_sp(1) = thrust_desired_xy(1);
+            float motion_err_y = 0 - xmotion;
+            float acc_y = _xmotion_deriv.update(xmotion);
+            float ofd_err = desired_ofd.get() - flow_divergence;
+            // PID-velocity controller for NE-direction.
+            Vector2f thrust_desired_xy;
+            thrust_desired_xy(0) = k_ofd_p.get() * (ofd_err); //kofd_p
+            thrust_desired_xy(1) = k_m_p.get()* motion_err_y + k_m_d.get() * acc_y + _thr_int_y; //k_m_p, k_m_d, k_m_i
 
-        if (thrust_desired_xy * thrust_desired_xy > thrust_max* thrust_max) {
-            float mag = thrust_desired_xy.length();
-            _thr_sp(0) = thrust_desired_xy(0) / mag * thrust_max;
-            _thr_sp(1) = thrust_desired_xy(1) / mag * thrust_max;
+            // Get maximum allowed thrust in NE based on tilt and excess thrust.
+            float thrust_max_tilt = fabsf(_thr_sp(2)) * tanf(constraints.tilt);
+            float thrust_max = sqrtf(MPC_THR_MAX.get() * MPC_THR_MAX.get() - _thr_sp(2) * _thr_sp(2));
+            thrust_max = math::min(thrust_max_tilt, thrust_max);
+
+            // Saturate thrust in NE-direction.
+            _thr_sp(0) = thrust_desired_xy(0);
+            _thr_sp(1) = thrust_desired_xy(1);
+
+            if (thrust_desired_xy * thrust_desired_xy > thrust_max* thrust_max) {
+                float mag = thrust_desired_xy.length();
+                _thr_sp(0) = thrust_desired_xy(0) / mag * thrust_max;
+                _thr_sp(1) = thrust_desired_xy(1) / mag * thrust_max;
+            }
+
+            // Use tracking Anti-Windup for NE-direction: during saturation, the integrator is used to unsaturate the output
+            // see Anti-Reset Windup for PID controllers, L.Rundqwist, 1990
+            float arw_gain = 2.f / k_m_p.get();
+
+            float vel_err_lim;
+            vel_err_lim = motion_err_y - (thrust_desired_xy(1) - _thr_sp(1)) * arw_gain;
+
+            // Update integral
+            _thr_int_y += k_m_i.get() * vel_err_lim * _dt;  //k_m_i
+
+            /*yaw setpoint control */
+
+            yaw_sp = yaw + direction_guidence * k_yaw.get(); //k_yaw;
+            yaw_rate_sp = k_yaw_rate.get() * direction_guidence ; //k_yaw_rate
+
+            _att_sp = ControlMath::thrustToAttitude(_thr_sp, yaw_sp);
+            _att_sp.yaw_sp_move_rate = yaw_rate_sp;
+            _att_sp.fw_control_yaw = false;
+            _att_sp.apply_flaps = false;
+
+            _att_sp.timestamp = hrt_absolute_time();
+
+            if (_att_sp_pub != nullptr) {
+                orb_publish(_attitude_setpoint_id, _att_sp_pub, &_att_sp);
+
+             } else if (_attitude_setpoint_id) {
+                  _att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
+             }
+             //PX4_INFO("ATTITUDE_SETPOINT:\t%8.4f", (double)_att_sp.thrust_body[2]);
+
         }
-
-        // Use tracking Anti-Windup for NE-direction: during saturation, the integrator is used to unsaturate the output
-        // see Anti-Reset Windup for PID controllers, L.Rundqwist, 1990
-        float arw_gain = 2.f / k_m_p.get();
-
-        float vel_err_lim;
-        vel_err_lim = motion_err_y - (thrust_desired_xy(1) - _thr_sp(1)) * arw_gain;
-
-        // Update integral
-        _thr_int_y += k_m_i.get() * vel_err_lim * _dt;  //k_m_i
-
-        /*yaw setpoint control */
-
-        yaw_sp = yaw + direction_guidence * k_yaw.get(); //k_yaw;
-        yaw_rate_sp = k_yaw_rate.get() * direction_guidence ; //k_yaw_rate
-
-        _att_sp = ControlMath::thrustToAttitude(_thr_sp, yaw_sp);
-        _att_sp.yaw_sp_move_rate = yaw_rate_sp;
-        _att_sp.fw_control_yaw = false;
-        _att_sp.apply_flaps = false;
-
-        _att_sp.timestamp = hrt_absolute_time();
-
-        if (_att_sp_pub != nullptr) {
-            orb_publish(_attitude_setpoint_id, _att_sp_pub, &_att_sp);
-
-         } else if (_attitude_setpoint_id) {
-              _att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
-         }
-
-  }
+    }
     orb_unsubscribe(optical_front_sub);
     orb_unsubscribe(optical_downward_sub);
     orb_unsubscribe(dis_z_sub);
     orb_unsubscribe(att_sub);
+    orb_unsubscribe(vehicle_status_sub);
+    orb_unsubscribe(vehicle_control_mode_sub);
     PX4_INFO("exiting");
 }
 
