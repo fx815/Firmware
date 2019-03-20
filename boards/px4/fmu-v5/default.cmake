@@ -81,6 +81,7 @@ px4_add_board(
 		mavlink
 		mc_att_control
 		mc_pos_control
+		perching_control
 		navigator
 		sensors
 		vmount
