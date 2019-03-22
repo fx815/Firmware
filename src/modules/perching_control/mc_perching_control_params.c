@@ -163,3 +163,36 @@ PARAM_DEFINE_FLOAT(PC_YAW_KP, 0.02f);
  */
 PARAM_DEFINE_FLOAT(PC_YAW_RATE_KP, 0.01f);
 
+/**
+ * Low pass filter cut freq. for numerical height velocity derivative
+ *
+ * @unit Hz
+ * @min 0.0
+ * @max 10
+ * @decimal 2
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(PC_VELZ_LP, 5.0f);
+
+/**
+ * Low pass filter cut freq. for numerical height derivative
+ *
+ * @unit Hz
+ * @min 0.0
+ * @max 10
+ * @decimal 2
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(PC_HD_LP, 5.0f);
+
+/**
+ * Low pass filter cut freq. for numerical motion derivative
+ *
+ * @unit Hz
+ * @min 0.0
+ * @max 10
+ * @decimal 2
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(PC_MD_LP, 5.0f);
+
