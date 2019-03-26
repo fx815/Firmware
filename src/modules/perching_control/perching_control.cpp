@@ -385,7 +385,7 @@ void MulticopterPerchingControl::run()
             }
 
             _thr_sp(2) = math::constrain(thrust_desired_D, uMin, uMax);
-            PX4_INFO("H:\t%8.4f\tthrust_desired_d:\t%8.4f\tthrust_setpoint:\t%8.4f\t", (double)H,(double)thrust_desired_D,(double)_thr_sp(2));
+            //PX4_INFO("H:\t%8.4f\tthrust_desired_d:\t%8.4f\tthrust_setpoint:\t%8.4f\t", (double)H,(double)thrust_desired_D,(double)_thr_sp(2));
             /*thrust in perching and non perching direction */
 
             float motion_err_y = 0 - xmotion;
@@ -396,7 +396,7 @@ void MulticopterPerchingControl::run()
             Vector2f thrust_desired_xy;
             thrust_desired_xy(0) = k_ofd_p.get() * (ofd_err); //kofd_p
             thrust_desired_xy(1) = k_m_p.get()* motion_err_y + k_m_d.get() * acc_y + _thr_int_y; //k_m_p, k_m_d, k_m_i
-            
+            PX4_INFO("xmotion:\t%8.4f\tacc_y:\t%8.4f\tthrust_desired_m:\t%8.6f\t", (double)xmotion,(double)acc_y,(double)thrust_desired_xy(1));
             // Get maximum allowed thrust in NE based on tilt and excess thrust.
             float thrust_max_tilt = fabsf(_thr_sp(2)) * tanf(constraints.tilt);
             float thrust_max = sqrtf(MPC_THR_MAX.get() * MPC_THR_MAX.get() - _thr_sp(2) * _thr_sp(2));
