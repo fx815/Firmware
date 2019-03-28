@@ -832,7 +832,7 @@ MulticopterAttitudeControl::run()
 	float attitude_dt = 0.f;
 
 	while (!should_exit()) {
-
+		
 		// check if the selected gyro has updated first
 		sensor_correction_poll();
 		poll_fds.fd = _sensor_gyro_sub[_selected_gyro];

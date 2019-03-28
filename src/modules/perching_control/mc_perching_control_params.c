@@ -60,7 +60,7 @@ PARAM_DEFINE_FLOAT(PC_Z_KP, 0.12f);
  * @increment 0.01
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_Z_H, 0.5f);
+PARAM_DEFINE_FLOAT(PC_Z_H, 0.3f);
 
 /**
  * Proportional gain for vertical velocity error for perching control
@@ -90,18 +90,17 @@ PARAM_DEFINE_FLOAT(PC_Z_VEL_KI, 0.02f);
  * @decimal 3
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_Z_VEL_KD, 0.0f);
+PARAM_DEFINE_FLOAT(PC_Z_VEL_KD, 0.02f);
 
 /**
  * Proportional gain for perching direction control
  *
- * @unit m/s
- * @min 0.5
+ * @min 0.1
  * @max 8.0
  * @decimal 1
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_OFD_KP, 3.0f);
+PARAM_DEFINE_FLOAT(PC_OFD_KP, 0.2f);
 
 /**
  * Desored Optical flow divergence
@@ -116,7 +115,6 @@ PARAM_DEFINE_FLOAT(PC_OFD_GOAL, 10.0f);
 /**
  * proportaional gain for non perching direction control
  *
- * @unit m/s
  * @min 0.5
  * @max 4.0
  * @group Multicopter Perching Control

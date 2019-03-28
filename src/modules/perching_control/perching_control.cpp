@@ -230,6 +230,16 @@ void MulticopterPerchingControl::poll_subscriptions()
             direction_guidence = ofd.theta;
         }
 
+        orb_check(att_sub, &updated);
+        if(updated){
+            
+            orb_copy(ORB_ID(vehicle_attitude), att_sub, &att);
+            yaw = Eulerf(Quatf(att.q)).psi();
+            roll = Eulerf(Quatf(att.q)).phi();
+            pitch = Eulerf(Quatf(att.q)).theta();
+        }
+
+
        orb_check(optical_downward_sub, &updated);
        if(updated){
             
@@ -271,7 +281,7 @@ void MulticopterPerchingControl::poll_subscriptions()
 
 void MulticopterPerchingControl::run()
 {
-    PX4_INFO("perching controller start");
+    px4_usleep(50000);
     hrt_abstime time_stamp_last_loop = hrt_absolute_time();
 
     /* subscribe to customised optical_flow_tayu_theta topic */
@@ -299,8 +309,9 @@ void MulticopterPerchingControl::run()
     fds[0].events = POLLIN;
 
     while(!should_exit()){
+        PX4_INFO("perching controller started");
         // poll for new data on the attitude topic (wait for up to 20ms)
-        int poll_ret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 1000);
+        int poll_ret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 20);
         if (poll_ret == 0) {
             /* this means none of our providers is giving us data */
             PX4_ERR("Got no data within a second");
@@ -338,18 +349,21 @@ void MulticopterPerchingControl::run()
                pitch = Eulerf(Quatf(att.q)).theta();
             }*/
     /*thrust in D direction*/
-        if(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PERCH)
-        {
+    while((_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PERCH)&&(_control_mode.flag_control_perch_enabled)){
+
+            poll_subscriptions();
+            parameters_update(false);
+
             bool topic_changed = false;
 
             if (_control_mode.flag_control_manual_enabled) {
                 _control_mode.flag_control_manual_enabled = false;
                 topic_changed = true;
             }
-            if (_control_mode.flag_control_attitude_enabled) {
-                _control_mode.flag_control_attitude_enabled = false;
-                topic_changed = true;
-            }
+            //if (_control_mode.flag_control_attitude_enabled) {
+            //    _control_mode.flag_control_attitude_enabled = false;
+            //   topic_changed = true;
+            //}
             if (_control_mode.flag_control_position_enabled) {
                 _control_mode.flag_control_position_enabled = false;
                 topic_changed = true;
@@ -367,7 +381,6 @@ void MulticopterPerchingControl::run()
                 orb_publish(ORB_ID(vehicle_control_mode), _vehicle_control_mode_pub, &_control_mode);
             }
 
-            //PX4_INFO("IM HERE");
             H = -output_h - 0.06f; //compensate for roll and pitch, and add offset, in D direction
             vel_z_sp = k_p.get() * (-h_sp.get() - H);//h_sp k_p param;
             vel_z = _h_deriv.update(H);
@@ -385,9 +398,9 @@ void MulticopterPerchingControl::run()
             }
 
             _thr_sp(2) = math::constrain(thrust_desired_D, uMin, uMax);
-            //PX4_INFO("H:\t%8.4f\tthrust_desired_d:\t%8.4f\tthrust_setpoint:\t%8.4f\t", (double)H,(double)thrust_desired_D,(double)_thr_sp(2));
+            //PX4_INFO("H:\t%8.4f\tvel_z_sp:\t%8.4f\tvel_err_z:\t%8.4f\thrust_desired_D:\t%8.4f\t", (double)H,(double)vel_z_sp,(double)vel_err_z,(double)thrust_desired_D);
             /*thrust in perching and non perching direction */
-
+            //PX4_INFO("H:\t%8.4f\tthrust_desired_D:\t%8.4f\tthrust_setpoint_D:\t%8.4f\t", (double)H,(double)thrust_desired_D,(double)_thr_sp(2));
             float motion_err_y = 0 - xmotion;
             float acc_y = _xmotion_deriv.update(xmotion);
             float ofd_err = desired_ofd.get() - flow_divergence;
@@ -396,7 +409,7 @@ void MulticopterPerchingControl::run()
             Vector2f thrust_desired_xy;
             thrust_desired_xy(0) = k_ofd_p.get() * (ofd_err); //kofd_p
             thrust_desired_xy(1) = k_m_p.get()* motion_err_y + k_m_d.get() * acc_y + _thr_int_y; //k_m_p, k_m_d, k_m_i
-            PX4_INFO("xmotion:\t%8.4f\tacc_y:\t%8.4f\tthrust_desired_m:\t%8.6f\t", (double)xmotion,(double)acc_y,(double)thrust_desired_xy(1));
+
             // Get maximum allowed thrust in NE based on tilt and excess thrust.
             float thrust_max_tilt = fabsf(_thr_sp(2)) * tanf(constraints.tilt);
             float thrust_max = sqrtf(MPC_THR_MAX.get() * MPC_THR_MAX.get() - _thr_sp(2) * _thr_sp(2));
@@ -422,10 +435,13 @@ void MulticopterPerchingControl::run()
             // Update integral
             _thr_int_y += k_m_i.get() * vel_err_lim * _dt;  //k_m_i
 
+            //PX4_INFO("motion_err_y:\t%8.4f\tacc_y:\t%8.4f\tthrust_desired_nop:\t%8.4f\tthrust_setpoint_nop:\t%8.4f\t",(double)motion_err_y,(double)acc_y,(double)thrust_desired_xy(1),(double)_thr_sp(1));
+            //PX4_INFO("ofd_err:\t%8.4f\tflow_divergence:\t%8.4f\tthrust_desired_ofd:\t%8.6f\tthrust_setpoint_perch:\t%8.4f\t", (double)ofd_err,(double)flow_divergence,(double)thrust_desired_xy(0),(double)_thr_sp(0));
             /*yaw setpoint control */
             //PX4_INFO("thrust_setpoint:\t%8.4f\t%8.4f\t%8.4f", (double)_thr_sp(0),(double)_thr_sp(1),(double)_thr_sp(2));
             yaw_sp = yaw + direction_guidence * k_yaw.get(); //k_yaw;
             yaw_rate_sp = k_yaw_rate.get() * direction_guidence ; //k_yaw_rate
+
 
             _att_sp = ControlMath::thrustToAttitude(_thr_sp, yaw_sp);
             _att_sp.yaw_sp_move_rate = yaw_rate_sp;
@@ -440,9 +456,28 @@ void MulticopterPerchingControl::run()
              } else if (_attitude_setpoint_id) {
                   _att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
              }
-             //PX4_INFO("ATTITUDE_SETPOINT:\t%8.4f\t%8.4f\t%8.4f", (double)_att_sp.thrust_body[0],(double)_att_sp.thrust_body[1],(double)_att_sp.thrust_body[2]);
+             //PX4_INFO("ATTITUDE_SETPOINT:\t%8.4f\t%8.4f\t%8.4f\t%8.4f", (double)_att_sp.roll_body,(double)_att_sp.pitch_body,(double)_att_sp.yaw_body,(double)_att_sp.thrust_body[2]);
              px4_usleep(50000);
 
+        }
+
+        bool topic_changed = false;
+
+        if (!_control_mode.flag_control_manual_enabled) {
+            _control_mode.flag_control_manual_enabled = true;
+            topic_changed = true;
+        }
+        //if (_control_mode.flag_control_attitude_enabled) {
+        //    _control_mode.flag_control_attitude_enabled = false;
+        //   topic_changed = true;
+        //}
+        if (_control_mode.flag_control_perch_enabled) {
+            _control_mode.flag_control_perch_enabled = false;
+            topic_changed = true;
+        }
+        // publish to vehicle control mode topic if topic is changed
+        if (topic_changed) {
+            orb_publish(ORB_ID(vehicle_control_mode), _vehicle_control_mode_pub, &_control_mode);
         }
     }
     orb_unsubscribe(optical_front_sub);
@@ -451,6 +486,7 @@ void MulticopterPerchingControl::run()
     orb_unsubscribe(att_sub);
     orb_unsubscribe(vehicle_status_sub);
     orb_unsubscribe(vehicle_control_mode_sub);
+
     PX4_INFO("exiting");
 }
 

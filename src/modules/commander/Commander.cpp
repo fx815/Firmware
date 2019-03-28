@@ -2771,6 +2771,7 @@ Commander::set_main_state_rc(const vehicle_status_s &status_local, bool *changed
 	      status_flags.condition_global_position_valid)
 	    && (((_last_sp_man.timestamp != 0) && (_last_sp_man.timestamp == sp_man.timestamp)) ||
 		((_last_sp_man.offboard_switch == sp_man.offboard_switch) &&
+		 (_last_sp_man.perch_switch == sp_man.perch_switch) &&
 		 (_last_sp_man.return_switch == sp_man.return_switch) &&
 		 (_last_sp_man.mode_switch == sp_man.mode_switch) &&
 		 (_last_sp_man.acro_switch == sp_man.acro_switch) &&
@@ -2816,6 +2817,19 @@ Commander::set_main_state_rc(const vehicle_status_s &status_local, bool *changed
 
 		if (res == TRANSITION_DENIED) {
 			print_reject_mode("OFFBOARD");
+			/* mode rejected, continue to evaluate the main system mode */
+
+		} else {
+			/* changed successfully or already in this state */
+			return res;
+		}
+	}
+	/* perch switch overrides main switch */
+	if (sp_man.perch_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+		res = main_state_transition(status_local, commander_state_s::MAIN_STATE_PERCH, status_flags, &internal_state);
+
+		if (res == TRANSITION_DENIED) {
+			print_reject_mode("PERCH");
 			/* mode rejected, continue to evaluate the main system mode */
 
 		} else {
@@ -3226,7 +3240,7 @@ set_control_mode()
 	// add perch control modes
 	case vehicle_status_s::NAVIGATION_STATE_PERCH:
 		control_mode.flag_control_perch_enabled = true;
-		control_mode.flag_control_manual_enabled = true;
+		control_mode.flag_control_manual_enabled = false;
 		control_mode.flag_control_auto_enabled = false;
 		control_mode.flag_control_rates_enabled = true;
 		control_mode.flag_control_attitude_enabled = true;

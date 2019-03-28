@@ -85,6 +85,7 @@ struct Parameters {
 	int32_t rc_map_loiter_sw;
 	int32_t rc_map_acro_sw;
 	int32_t rc_map_offboard_sw;
+	int32_t rc_map_perch_sw;
 	int32_t rc_map_kill_sw;
 	int32_t rc_map_arm_sw;
 	int32_t rc_map_trans_sw;
@@ -112,6 +113,7 @@ struct Parameters {
 	float rc_loiter_th;
 	float rc_acro_th;
 	float rc_offboard_th;
+	float rc_perch_th;
 	float rc_killswitch_th;
 	float rc_armswitch_th;
 	float rc_trans_th;
@@ -127,6 +129,7 @@ struct Parameters {
 	bool rc_loiter_inv;
 	bool rc_acro_inv;
 	bool rc_offboard_inv;
+	bool rc_perch_inv;
 	bool rc_killswitch_inv;
 	bool rc_armswitch_inv;
 	bool rc_trans_inv;
@@ -177,6 +180,7 @@ struct ParameterHandles {
 	param_t rc_map_loiter_sw;
 	param_t rc_map_acro_sw;
 	param_t rc_map_offboard_sw;
+	param_t rc_map_perch_sw;
 	param_t rc_map_kill_sw;
 	param_t rc_map_arm_sw;
 	param_t rc_map_trans_sw;
@@ -208,6 +212,7 @@ struct ParameterHandles {
 	param_t rc_loiter_th;
 	param_t rc_acro_th;
 	param_t rc_offboard_th;
+	param_t rc_perch_th;
 	param_t rc_killswitch_th;
 	param_t rc_armswitch_th;
 	param_t rc_trans_th;

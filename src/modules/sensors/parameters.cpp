@@ -89,6 +89,7 @@ void initialize_parameter_handles(ParameterHandles &parameter_handles)
 	parameter_handles.rc_map_loiter_sw = param_find("RC_MAP_LOITER_SW");
 	parameter_handles.rc_map_acro_sw = param_find("RC_MAP_ACRO_SW");
 	parameter_handles.rc_map_offboard_sw = param_find("RC_MAP_OFFB_SW");
+	parameter_handles.rc_map_perch_sw = param_find("RC_MAP_PERC_SW");
 	parameter_handles.rc_map_kill_sw = param_find("RC_MAP_KILL_SW");
 	parameter_handles.rc_map_arm_sw = param_find("RC_MAP_ARM_SW");
 	parameter_handles.rc_map_trans_sw = param_find("RC_MAP_TRANS_SW");
@@ -122,6 +123,7 @@ void initialize_parameter_handles(ParameterHandles &parameter_handles)
 	parameter_handles.rc_loiter_th = param_find("RC_LOITER_TH");
 	parameter_handles.rc_acro_th = param_find("RC_ACRO_TH");
 	parameter_handles.rc_offboard_th = param_find("RC_OFFB_TH");
+	parameter_handles.rc_perch_th = param_find("RC_PERC_TH");;
 	parameter_handles.rc_killswitch_th = param_find("RC_KILLSWITCH_TH");
 	parameter_handles.rc_armswitch_th = param_find("RC_ARMSWITCH_TH");
 	parameter_handles.rc_trans_th = param_find("RC_TRANS_TH");
@@ -281,6 +283,10 @@ int update_parameters(const ParameterHandles &parameter_handles, Parameters &par
 		PX4_WARN("%s", paramerr);
 	}
 
+	if (param_get(parameter_handles.rc_map_perch_sw, &(parameters.rc_map_perch_sw)) != OK) {
+		PX4_WARN("%s", paramerr);
+	}
+
 	if (param_get(parameter_handles.rc_map_kill_sw, &(parameters.rc_map_kill_sw)) != OK) {
 		PX4_WARN("%s", paramerr);
 	}
@@ -346,6 +352,9 @@ int update_parameters(const ParameterHandles &parameter_handles, Parameters &par
 	param_get(parameter_handles.rc_offboard_th, &(parameters.rc_offboard_th));
 	parameters.rc_offboard_inv = (parameters.rc_offboard_th < 0);
 	parameters.rc_offboard_th = fabsf(parameters.rc_offboard_th);
+	param_get(parameter_handles.rc_perch_th, &(parameters.rc_perch_th));
+	parameters.rc_perch_inv = (parameters.rc_perch_th < 0);
+	parameters.rc_perch_th = fabsf(parameters.rc_perch_th);
 	param_get(parameter_handles.rc_killswitch_th, &(parameters.rc_killswitch_th));
 	parameters.rc_killswitch_inv = (parameters.rc_killswitch_th < 0);
 	parameters.rc_killswitch_th = fabsf(parameters.rc_killswitch_th);
