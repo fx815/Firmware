@@ -43,7 +43,7 @@
 #include <matrix/matrix/math.hpp>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 
-namespace ControlMath
+namespace ControlMath_Perch
 {
 /**
  * Converts thrust vector and yaw set-point to a desired attitude.
@@ -51,7 +51,7 @@ namespace ControlMath
  * @param yaw_sp the desired yaw
  * @return vehicle_attitude_setpoints_s structure
  */
-vehicle_attitude_setpoint_s thrustToAttitude(const matrix::Vector3f &thr_sp, const float yaw_sp);
+vehicle_attitude_setpoint_s thrustToAttitude(const matrix::Vector3f &thr_sp, const float yaw_sp, const float yaw);
 
 /**
  * Outputs the sum of two vectors but respecting the limits and priority.

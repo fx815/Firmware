@@ -309,7 +309,7 @@ void MulticopterPerchingControl::run()
     fds[0].events = POLLIN;
 
     while(!should_exit()){
-        PX4_INFO("perching controller started");
+        //PX4_INFO("perching controller started");
         // poll for new data on the attitude topic (wait for up to 20ms)
         int poll_ret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 20);
         if (poll_ret == 0) {
@@ -443,7 +443,7 @@ void MulticopterPerchingControl::run()
             yaw_rate_sp = k_yaw_rate.get() * direction_guidence ; //k_yaw_rate
 
 
-            _att_sp = ControlMath::thrustToAttitude(_thr_sp, yaw_sp);
+            _att_sp = ControlMath_Perch::thrustToAttitude(_thr_sp, yaw_sp, yaw);
             _att_sp.yaw_sp_move_rate = yaw_rate_sp;
             _att_sp.fw_control_yaw = false;
             _att_sp.apply_flaps = false;
