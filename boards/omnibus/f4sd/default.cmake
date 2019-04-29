@@ -32,6 +32,7 @@ px4_add_board(
 		#pca9685
 		#pwm_input
 		#pwm_out_sim
+		pmw3901
 		px4flow
 		px4fmu
 		rc_input
@@ -42,7 +43,7 @@ px4_add_board(
 		#telemetry # all available telemetry drivers
 		telemetry/frsky_telemetry
 		#test_ppm
-		osd
+		#osd
 
 	MODULES
 		attitude_estimator_q
@@ -65,6 +66,7 @@ px4_add_board(
 		mc_pos_control
 		navigator
 		sensors
+		perching_control
 		#vmount
 		#vtol_att_control
 		#wind_estimator
