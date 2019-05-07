@@ -33,11 +33,11 @@
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_constraints.h>
+#include "Utility/ControlMath.hpp"
 
 #include <lib/FlightTasks/FlightTasks.hpp>
-
-#include "Utility/ControlMath.hpp"
-#include <modules/mc_pos_control/PositionControl.hpp>
+//#include <modules/mc_pos_control/PositionControl.hpp>
 
 extern "C" __EXPORT int perching_control_main(int argc, char *argv[]);
 
@@ -81,6 +81,8 @@ private:
 
     struct vehicle_status_s _vehicle_status;
 
+    vehicle_constraints_s _constraints{}; /**< variable constraints */
+
     orb_advert_t    _att_sp_pub{nullptr};           /**< attitude setpoint publication */
 
     orb_id_t _attitude_setpoint_id{nullptr};
@@ -105,7 +107,7 @@ private:
     control::BlockDerivative _vel_z_deriv;
     control::BlockDerivative _xmotion_deriv;
     FlightTasks _flight_tasks;
-    PositionControl _positioncontrol;
+    //PositionControl _positioncontrol;
 
 
     float output_h;//filtered h
@@ -125,6 +127,7 @@ private:
     float vel_z;
     float acc_z;
 
+
     DEFINE_PARAMETERS(
         (ParamFloat<px4::params::PC_Z_H>) h_sp,
         (ParamFloat<px4::params::PC_Z_KP>) k_p,
@@ -140,10 +143,17 @@ private:
         (ParamFloat<px4::params::PC_YAW_RATE_KP>) k_yaw_rate,
         (ParamFloat<px4::params::MPC_THR_HOVER>) MPC_THR_HOVER,
         (ParamFloat<px4::params::MPC_THR_MIN>) MPC_THR_MIN,
-        (ParamFloat<px4::params::MPC_THR_MAX>) MPC_THR_MAX
+        (ParamFloat<px4::params::MPC_THR_MAX>) MPC_THR_MAX,
+        (ParamFloat<px4::params::MPC_MANTHR_MIN>) MPC_MANTHR_MIN,
+        (ParamFloat<px4::params::MPC_XY_VEL_MAX>) MPC_XY_VEL_MAX,
+        (ParamFloat<px4::params::MPC_Z_VEL_MAX_DN>) MPC_Z_VEL_MAX_DN,
+        (ParamFloat<px4::params::MPC_Z_VEL_MAX_UP>) MPC_Z_VEL_MAX_UP,
+        (ParamFloat<px4::params::MPC_TILTMAX_AIR>) MPC_TILTMAX_AIR_rad, // maximum tilt for any position controlled mode in radians
+        (ParamFloat<px4::params::MPC_MAN_TILT_MAX>) MPC_MAN_TILT_MAX_rad  // maximum til for stabilized/altitude mode in radians
     );
     int parameters_update(bool force);
     void poll_subscriptions();
+    void updateConstraints(const vehicle_constraints_s &constraints);
 
 };
 
@@ -174,8 +184,8 @@ MulticopterPerchingControl::MulticopterPerchingControl() :
     ModuleParams(nullptr),
     _h_deriv(this, "HD"),
     _vel_z_deriv(this, "VELZ"),
-    _xmotion_deriv(this, "MD"),
-    _positioncontrol(this)
+    _xmotion_deriv(this, "MD")
+    //_positioncontrol(this)
 {
     parameters_update(true);
 }
@@ -201,18 +211,20 @@ int MulticopterPerchingControl::parameters_update(bool force)
 
         _flight_tasks.handleParameterUpdate();  
     }
-
+    
+    MPC_TILTMAX_AIR_rad.set(math::radians(MPC_TILTMAX_AIR_rad.get()));
+    MPC_MAN_TILT_MAX_rad.set(math::radians(MPC_MAN_TILT_MAX_rad.get()));
     return OK;
 }
 
 int
 MulticopterPerchingControl::print_status()
 {
-    if (_flight_tasks.isAnyTaskActive()) {
-        PX4_INFO("Running, active flight task: %i", _flight_tasks.getActiveTask());
-    } else {
-        PX4_INFO("Running, no flight task active");
-    }
+    //if (_flight_tasks.isAnyTaskActive()) {
+        //PX4_INFO("Running, active flight task: %i", _flight_tasks.getActiveTask());
+    //} else {
+        PX4_INFO("Running");
+    //}
     return 0;
 }
 
@@ -312,16 +324,15 @@ void MulticopterPerchingControl::run()
         //PX4_INFO("perching controller started");
         // poll for new data on the attitude topic (wait for up to 20ms)
         int poll_ret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 20);
-        if (poll_ret == 0) {
+        //if (poll_ret == 0) {
             /* this means none of our providers is giving us data */
-            PX4_ERR("Got no data within a second");
-        }else if (poll_ret < 0) {
+        //    PX4_ERR("Got no data within a second");
+        //}else 
+        if (poll_ret < 0) {
             PX4_ERR("poll error %d, %d", poll_ret, errno);
             px4_usleep(50000);
             continue;
-
-        } else{
-
+        }else{
             if(fds[0].revents & POLLIN){
                 orb_copy(ORB_ID(vehicle_attitude), att_sub, &att);
                 yaw = Eulerf(Quatf(att.q)).psi();
@@ -331,7 +342,7 @@ void MulticopterPerchingControl::run()
         }
 
         poll_subscriptions();
-        parameters_update(false);
+        parameters_update(true);
 
         //PX4_INFO("SENSOR_DATA:\t%8.4f\t%8.4f\t%8.4f", (double)output_h,(double)xmotion,(double)ymotion);
         
@@ -341,7 +352,7 @@ void MulticopterPerchingControl::run()
         time_stamp_last_loop = time_stamp_current;
 
         vehicle_constraints_s constraints = _flight_tasks.getConstraints();
-        _positioncontrol.updateConstraints(constraints);
+        updateConstraints(constraints);
 
     /*if (orb_copy(ORB_ID(vehicle_attitude), att_sub, &att) == PX4_OK && PX4_ISFINITE(att.q[0])) {
                yaw = Eulerf(Quatf(att.q)).psi();
@@ -352,7 +363,7 @@ void MulticopterPerchingControl::run()
     while((_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PERCH)&&(_control_mode.flag_control_perch_enabled)){
 
             poll_subscriptions();
-            parameters_update(false);
+            parameters_update(true);
 
             bool topic_changed = false;
 
@@ -386,7 +397,7 @@ void MulticopterPerchingControl::run()
             vel_z = _h_deriv.update(H);
             acc_z = _vel_z_deriv.update(vel_z);
             float vel_err_z = vel_z_sp - vel_z;
-            float thrust_desired_D = k_vel_p.get() * vel_err_z + k_vel_d.get() * acc_z + _thr_int_z - MPC_THR_HOVER.get(); //k_vel_p, k_vel_d
+            float thrust_desired_D = k_vel_p.get() * vel_err_z + k_vel_d.get() * acc_z /*+ _thr_int_z*/ - MPC_THR_HOVER.get(); //k_vel_p, k_vel_d
             float uMax = -MPC_THR_MIN.get();
             float uMin = -MPC_THR_MAX.get();
             bool stop_integral_D = (thrust_desired_D >= uMax && vel_err_z >= 0.0f) ||
@@ -411,7 +422,7 @@ void MulticopterPerchingControl::run()
             thrust_desired_xy(1) = k_m_p.get()* motion_err_y + k_m_d.get() * acc_y + _thr_int_y; //k_m_p, k_m_d, k_m_i
 
             // Get maximum allowed thrust in NE based on tilt and excess thrust.
-            float thrust_max_tilt = fabsf(_thr_sp(2)) * tanf(constraints.tilt);
+            float thrust_max_tilt = fabsf(_thr_sp(2)) * tanf(_constraints.tilt);
             float thrust_max = sqrtf(MPC_THR_MAX.get() * MPC_THR_MAX.get() - _thr_sp(2) * _thr_sp(2));
             thrust_max = math::min(thrust_max_tilt, thrust_max);
 
@@ -447,6 +458,7 @@ void MulticopterPerchingControl::run()
             _att_sp.yaw_sp_move_rate = yaw_rate_sp;
             _att_sp.fw_control_yaw = false;
             _att_sp.apply_flaps = false;
+            _att_sp.thrust_body[1] = thrust_desired_D;
 
             _att_sp.timestamp = hrt_absolute_time();
 
@@ -505,6 +517,31 @@ int MulticopterPerchingControl::task_spawn(int argc, char *argv[])
     }
 
     return 0;
+}
+
+void MulticopterPerchingControl::updateConstraints(const vehicle_constraints_s &constraints)
+{
+    _constraints = constraints;
+
+    // For safety check if adjustable constraints are below global constraints. If they are not stricter than global
+    // constraints, then just use global constraints for the limits.
+
+    if (!PX4_ISFINITE(constraints.tilt)
+        || !(constraints.tilt < math::max(MPC_TILTMAX_AIR_rad.get(), MPC_MAN_TILT_MAX_rad.get()))) {
+        _constraints.tilt = math::max(MPC_TILTMAX_AIR_rad.get(), MPC_MAN_TILT_MAX_rad.get());
+    }
+
+    if (!PX4_ISFINITE(constraints.speed_up) || !(constraints.speed_up < MPC_Z_VEL_MAX_UP.get())) {
+        _constraints.speed_up = MPC_Z_VEL_MAX_UP.get();
+    }
+
+    if (!PX4_ISFINITE(constraints.speed_down) || !(constraints.speed_down < MPC_Z_VEL_MAX_DN.get())) {
+        _constraints.speed_down = MPC_Z_VEL_MAX_DN.get();
+    }
+
+    if (!PX4_ISFINITE(constraints.speed_xy) || !(constraints.speed_xy < MPC_XY_VEL_MAX.get())) {
+        _constraints.speed_xy = MPC_XY_VEL_MAX.get();
+    }
 }
 
 MulticopterPerchingControl *MulticopterPerchingControl::instantiate(int argc, char *argv[])
