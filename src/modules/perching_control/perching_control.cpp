@@ -113,7 +113,8 @@ private:
     float output_h;//filtered h
     float previous_h; //for fi
     float sf = 0.7; //filter smooh factor
-    float _thr_int_z, _thr_int_y;
+    float _thr_int_z = 0.0f;
+    float _thr_int_y = 0.0f;
     float roll;
     float pitch;
     float yaw;
@@ -256,8 +257,8 @@ void MulticopterPerchingControl::poll_subscriptions()
        if(updated){
             
             orb_copy(ORB_ID(optical_flow), optical_downward_sub, &of);
-            xmotion = of.pixel_flow_x_integral;
-            ymotion = of.pixel_flow_y_integral;
+            ymotion = of.pixel_flow_x_integral;
+            xmotion = of.pixel_flow_y_integral;//quick fix, swap the x,y here bacause I used xmotion for the controller
        }
       
        orb_check(dis_z_sub, &updated);
@@ -397,17 +398,22 @@ void MulticopterPerchingControl::run()
             vel_z = _h_deriv.update(H);
             acc_z = _vel_z_deriv.update(vel_z);
             float vel_err_z = vel_z_sp - vel_z;
-            float thrust_desired_D = k_vel_p.get() * vel_err_z + k_vel_d.get() * acc_z /*+ _thr_int_z*/ - MPC_THR_HOVER.get(); //k_vel_p, k_vel_d
+            float thrust_desired_D = k_vel_p.get() * vel_err_z + k_vel_d.get() * acc_z + _thr_int_z - MPC_THR_HOVER.get(); //k_vel_p, k_vel_d
             float uMax = -MPC_THR_MIN.get();
             float uMin = -MPC_THR_MAX.get();
             bool stop_integral_D = (thrust_desired_D >= uMax && vel_err_z >= 0.0f) ||
                            (thrust_desired_D <= uMin && vel_err_z <= 0.0f);
+            //PX4_INFO("stop_integral_D:\t%8.4f\t", (double)stop_integral_D);
             if (!stop_integral_D){
                 _thr_int_z += vel_err_z * k_vel_i.get() * _dt;        //k_vel_i
+
+                //PX4_INFO("_thr_int_z:\t%8.4f\t", (double)_thr_int_z);
                 // limit thrust integral
                 _thr_int_z = math::min(fabsf(_thr_int_z), MPC_THR_MAX.get()) * math::sign(_thr_int_z);
-            }
 
+                //PX4_INFO("_thr_int_z88:\t%8.4f\t", (double)_thr_int_z);
+            }
+                //PX4_INFO("thrust_desired_D:\t%8.4f\t", (double)thrust_desired_D);
             _thr_sp(2) = math::constrain(thrust_desired_D, uMin, uMax);
             //PX4_INFO("H:\t%8.4f\tvel_z_sp:\t%8.4f\tvel_err_z:\t%8.4f\thrust_desired_D:\t%8.4f\t", (double)H,(double)vel_z_sp,(double)vel_err_z,(double)thrust_desired_D);
             /*thrust in perching and non perching direction */
@@ -458,7 +464,7 @@ void MulticopterPerchingControl::run()
             _att_sp.yaw_sp_move_rate = yaw_rate_sp;
             _att_sp.fw_control_yaw = false;
             _att_sp.apply_flaps = false;
-            _att_sp.thrust_body[1] = thrust_desired_D;
+            _att_sp.thrust_body[1] = thrust_desired_xy(0);
 
             _att_sp.timestamp = hrt_absolute_time();
 
@@ -469,7 +475,7 @@ void MulticopterPerchingControl::run()
                   _att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
              }
              //PX4_INFO("ATTITUDE_SETPOINT:\t%8.4f\t%8.4f\t%8.4f\t%8.4f", (double)_att_sp.roll_body,(double)_att_sp.pitch_body,(double)_att_sp.yaw_body,(double)_att_sp.thrust_body[2]);
-             px4_usleep(50000);
+             px4_usleep(10000);
 
         }
 
