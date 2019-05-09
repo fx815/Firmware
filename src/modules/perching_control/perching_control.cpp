@@ -452,6 +452,12 @@ void MulticopterPerchingControl::run()
             // Update integral
             _thr_int_y += k_m_i.get() * vel_err_lim * _dt;  //k_m_i
 
+            /*PX4_INFO("thrust_desired_x:\t%8.4f\t", (double)thrust_desired_xy(0));
+            PX4_INFO("_thr_spx:\t%8.4f\t", (double)_thr_sp(0));
+            PX4_INFO("thrust_desired_y:\t%8.4f\t", (double)thrust_desired_xy(1));
+            PX4_INFO("_thr_spy:\t%8.4f\t", (double)_thr_sp(1));*/
+
+
             //PX4_INFO("motion_err_y:\t%8.4f\tacc_y:\t%8.4f\tthrust_desired_nop:\t%8.4f\tthrust_setpoint_nop:\t%8.4f\t",(double)motion_err_y,(double)acc_y,(double)thrust_desired_xy(1),(double)_thr_sp(1));
             //PX4_INFO("ofd_err:\t%8.4f\tflow_divergence:\t%8.4f\tthrust_desired_ofd:\t%8.6f\tthrust_setpoint_perch:\t%8.4f\t", (double)ofd_err,(double)flow_divergence,(double)thrust_desired_xy(0),(double)_thr_sp(0));
             /*yaw setpoint control */
@@ -464,7 +470,7 @@ void MulticopterPerchingControl::run()
             _att_sp.yaw_sp_move_rate = yaw_rate_sp;
             _att_sp.fw_control_yaw = false;
             _att_sp.apply_flaps = false;
-            _att_sp.thrust_body[1] = thrust_desired_xy(0);
+            //_att_sp.thrust_body[1] = yaw;
 
             _att_sp.timestamp = hrt_absolute_time();
 
