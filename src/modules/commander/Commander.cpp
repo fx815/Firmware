@@ -2645,7 +2645,7 @@ Commander::set_main_state_rc(const vehicle_status_s &status_local, bool *changed
 	const bool rc_values_updated = _last_sp_man.timestamp != sp_man.timestamp;
 	const bool some_switch_changed =
 		(_last_sp_man.offboard_switch != sp_man.offboard_switch)
-		|| (_last_sp_man.perch_switch == sp_man.perch_switch)
+		|| (_last_sp_man.perch_switch != sp_man.perch_switch)
 		|| (_last_sp_man.return_switch != sp_man.return_switch)
 		|| (_last_sp_man.mode_switch != sp_man.mode_switch)
 		|| (_last_sp_man.acro_switch != sp_man.acro_switch)

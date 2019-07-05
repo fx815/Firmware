@@ -566,4 +566,3 @@ PARAM_DEFINE_FLOAT(MC_DTERM_CUTOFF, 0.f);
  * @group Multicopter Attitude Control
  */
 PARAM_DEFINE_INT32(MC_AIRMODE, 0);
-

@@ -118,7 +118,7 @@ fi
 vl53lxx start -a
 
 # Check for flow sensor, launched as a background task to scan
-px4flow start &
+#px4flow start &
 
 ###############################################################################
 #                            End Optional drivers                             #
