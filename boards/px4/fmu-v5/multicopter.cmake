@@ -20,10 +20,10 @@ px4_add_board(
 	DRIVERS
 		barometer # all available barometer drivers
 		batt_smbus
-		camera_capture
-		camera_trigger
+		#camera_capture
+		#camera_trigger
 		distance_sensor # all available distance sensor drivers
-		gps
+		#gps
 		imu/bmi055
 		imu/mpu6000
 		irlock
@@ -36,7 +36,7 @@ px4_add_board(
 		pmw3901
 		pwm_input
 		pwm_out_sim
-		px4flow
+		#px4flow
 		px4fmu
 		px4io
 		rc_input
@@ -50,19 +50,19 @@ px4_add_board(
 
 	MODULES
 		attitude_estimator_q
-		camera_feedback
+		#camera_feedback
 		commander
 		dataman
-		ekf2
+		#ekf2
 		events
 		land_detector
 		landing_target_estimator
 		load_mon
-		local_position_estimator
+		#local_position_estimator
 		logger
 		mavlink
 		mc_att_control
-		mc_pos_control
+		#mc_pos_control
 		perching_control
 		navigator
 		sensors

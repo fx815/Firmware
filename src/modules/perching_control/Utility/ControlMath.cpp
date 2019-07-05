@@ -62,9 +62,9 @@ vehicle_attitude_setpoint_s thrustToAttitude(const Vector3f &thr_sp, const float
 	}
 
 	// vector of desired yaw direction in XY plane, rotated by PI/2
-	//Vector3f y_C(-sinf(att_sp.yaw_body), cosf(att_sp.yaw_body), 0.0f);
+	Vector3f y_C(-sinf(att_sp.yaw_body), cosf(att_sp.yaw_body), 0.0f);
     //Vector3f y_C(0.0f, 1.0f, 0.0f);
-    Vector3f y_C(-sinf(yaw), cosf(yaw), 0.0f);
+    //Vector3f y_C(-sinf(yaw), cosf(yaw), 0.0f);
 	if (fabsf(body_z(2)) > 0.000001f) {
 		// desired body_x axis, orthogonal to body_z
 		body_x = y_C % body_z;

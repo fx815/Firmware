@@ -33,15 +33,15 @@
 px4_add_module(
     MODULE modules__perching_control
     MAIN perching_control
-    STACK_MAIN 2000
+    STACK_MAIN 1200
     SRCS
         perching_control.cpp
         Utility/ControlMath.cpp
     DEPENDS
         controllib
-		FlightTasks
+		#FlightTasks
 		git_ecl
 		ecl_geo
-        CollisionPrevention
-        modules__mc_pos_control
+        #CollisionPrevention
+        #modules__mc_pos_control
     )

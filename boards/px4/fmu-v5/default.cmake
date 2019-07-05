@@ -20,11 +20,11 @@ px4_add_board(
 	DRIVERS
 		barometer # all available barometer drivers
 		batt_smbus
-		camera_capture
-		camera_trigger
-		differential_pressure # all available differential pressure drivers
+		#camera_capture
+		#camera_trigger
+		#differential_pressure # all available differential pressure drivers
 		distance_sensor # all available distance sensor drivers
-		gps
+		#gps
 		#heater
 		imu/adis16448
 		imu/adis16497
@@ -48,7 +48,7 @@ px4_add_board(
 		#protocol_splitter
 		pwm_input
 		pwm_out_sim
-		px4flow
+		#px4flow
 		px4fmu
 		px4io
 		rc_input
@@ -64,28 +64,28 @@ px4_add_board(
 
 	MODULES
 		attitude_estimator_q
-		camera_feedback
+		#camera_feedback
 		commander
 		dataman
 		ekf2
 		events
-		fw_att_control
-		fw_pos_control_l1
-		gnd_att_control
-		gnd_pos_control
+		#fw_att_control
+		#fw_pos_control_l1
+		#gnd_att_control
+		#gnd_pos_control
 		land_detector
 		landing_target_estimator
 		load_mon
-		local_position_estimator
+		#local_position_estimator
 		logger
 		mavlink
 		mc_att_control
-		mc_pos_control
+		#mc_pos_control
 		perching_control
 		navigator
 		sensors
 		vmount
-		vtol_att_control
+		#vtol_att_control
 		wind_estimator
 
 	SYSTEMCMDS
@@ -115,16 +115,16 @@ px4_add_board(
 		ver
 
 	EXAMPLES
-		bottle_drop # OBC challenge
-		fixedwing_control # Tutorial code from https://px4.io/dev/example_fixedwing_control
-		hello
-		hwtest # Hardware test
+		#bottle_drop # OBC challenge
+		#fixedwing_control # Tutorial code from https://px4.io/dev/example_fixedwing_control
+		#hello
+		#hwtest # Hardware test
 		#matlab_csv_serial
-		position_estimator_inav
+		#position_estimator_inav
 		px4_mavlink_debug # Tutorial code from http://dev.px4.io/en/debug/debug_values.html
-		px4_simple_app # Tutorial code from http://dev.px4.io/en/apps/hello_sky.html
-		rover_steering_control # Rover example app
-		segway
-		uuv_example_app
+		#px4_simple_app # Tutorial code from http://dev.px4.io/en/apps/hello_sky.html
+		#rover_steering_control # Rover example app
+		#segway
+		#uuv_example_app
 
 	)

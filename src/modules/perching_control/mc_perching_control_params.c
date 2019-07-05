@@ -48,7 +48,7 @@
  * @increment 0.01
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_Z_KP, 0.12f);
+PARAM_DEFINE_FLOAT(PC_Z_KP, 1.0f);
 
 /**
  * flying altitude
@@ -65,22 +65,22 @@ PARAM_DEFINE_FLOAT(PC_Z_H, 0.3f);
 /**
  * Proportional gain for vertical velocity error for perching control
  *
- * @min 0.1
+ * @min 0.01
  * @max 0.4
  * @decimal 2
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_Z_VEL_KP, 0.2f);
+PARAM_DEFINE_FLOAT(PC_Z_VEL_KP, 0.1f);
 
 /**
  * Integral gain for vertical velocity error for perching control
  *
- * @min 0.01
+ * @min 0.001
  * @max 0.1
  * @decimal 3
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_Z_VEL_KI, 0.02f);
+PARAM_DEFINE_FLOAT(PC_Z_VEL_KI, 0.01f);
 
 /**
  * Differential gain for vertical velocity error for perching control
@@ -90,20 +90,20 @@ PARAM_DEFINE_FLOAT(PC_Z_VEL_KI, 0.02f);
  * @decimal 3
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_Z_VEL_KD, 0.02f);
+PARAM_DEFINE_FLOAT(PC_Z_VEL_KD, 0.005f);
 
 /**
  * Proportional gain for perching direction control
  *
- * @min 0.1
+ * @min 0.005
  * @max 8.0
  * @decimal 1
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_OFD_KP, 0.2f);
+PARAM_DEFINE_FLOAT(PC_OFD_KP, 0.03f);
 
 /**
- * Desored Optical flow divergence
+ * Desired Optical flow divergence
  *
  * @min 0.005
  * @max 50.0
@@ -119,7 +119,7 @@ PARAM_DEFINE_FLOAT(PC_OFD_GOAL, 10.0f);
  * @max 4.0
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_NP_KP, 1.0f);
+PARAM_DEFINE_FLOAT(PC_NP_KP, 3.0f);
 
 /**
  * Integral gain for non perching direction control
@@ -129,7 +129,7 @@ PARAM_DEFINE_FLOAT(PC_NP_KP, 1.0f);
  * @decimal 2
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_NP_KI, 0.9f);
+PARAM_DEFINE_FLOAT(PC_NP_KI, 0.1f);
 
 /**
  * Differential gain for non perching direction control
@@ -139,7 +139,7 @@ PARAM_DEFINE_FLOAT(PC_NP_KI, 0.9f);
  * @decimal 2
  * @group Multicopter Perching Control
  */
-PARAM_DEFINE_FLOAT(PC_NP_KD, 0.09f);
+PARAM_DEFINE_FLOAT(PC_NP_KD, 0.1f);
 
 /**
  * Proportional gain for yaw control
@@ -194,3 +194,163 @@ PARAM_DEFINE_FLOAT(PC_HD_LP, 5.0f);
  */
 PARAM_DEFINE_FLOAT(PC_MD_LP, 5.0f);
 
+/**
+ * Hover thrust
+ *
+ * Vertical thrust required to hover.
+ * This value is mapped to center stick for manual throttle control.
+ * With this value set to the thrust required to hover, transition
+ * from manual to Altitude or Position mode while hovering will occur with the
+ * throttle stick near center, which is then interpreted as (near)
+ * zero demand for vertical speed.
+ *
+ * This parameter is also important for the landing detection to work correctly.
+ *
+ * @unit norm
+ * @min 0.1
+ * @max 0.8
+ * @decimal 2
+ * @increment 0.01
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_THR_HOVER, 0.5f);
+
+/**
+ * Minimum thrust in auto thrust control
+ *
+ * It's recommended to set it > 0 to avoid free fall with zero thrust.
+ *
+ * @unit norm
+ * @min 0.05
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.01
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_THR_MIN, 0.12f);
+
+/**
+ * Maximum thrust in auto thrust control
+ *
+ * Limit max allowed thrust
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.01
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_THR_MAX, 1.0f);
+
+/**
+ * Minimum manual thrust
+ *
+ * Minimum vertical thrust. It's recommended to set it > 0 to avoid free fall with zero thrust.
+ * With MC_AIRMODE set to 1, this can safely be set to 0.
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.01
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_MANTHR_MIN, 0.08f);
+
+/**
+ * Maximum horizontal velocity
+ *
+ * Maximum horizontal velocity in AUTO mode. If higher speeds
+ * are commanded in a mission they will be capped to this velocity.
+ *
+ * @unit m/s
+ * @min 0.0
+ * @max 20.0
+ * @increment 1
+ * @decimal 2
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_XY_VEL_MAX, 12.0f);
+
+/**
+ * Maximum vertical descent velocity
+ *
+ * Maximum vertical velocity in AUTO mode and endpoint for stabilized modes (ALTCTRL, POSCTRL).
+ *
+ * @unit m/s
+ * @min 0.5
+ * @max 4.0
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_Z_VEL_MAX_DN, 1.0f);
+
+/**
+ * Maximum vertical ascent velocity
+ *
+ * Maximum vertical velocity in AUTO mode and endpoint for stabilized modes (ALTCTRL, POSCTRL).
+ *
+ * @unit m/s
+ * @min 0.5
+ * @max 8.0
+ * @decimal 1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_Z_VEL_MAX_UP, 3.0f);
+
+/**
+ * Maximum tilt angle in air
+ *
+ * Limits maximum tilt in AUTO and POSCTRL modes during flight.
+ *
+ * @unit deg
+ * @min 0.0
+ * @max 90.0
+ * @decimal 1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_TILTMAX_AIR, 45.0f);
+
+/**
+ * Maximal tilt angle in manual or altitude mode
+ *
+ * @unit deg
+ * @min 0.0
+ * @max 90.0
+ * @decimal 1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_MAN_TILT_MAX, 35.0f);
+
+/**
+ * Max manual yaw rate
+ *
+ * @unit deg/s
+ * @min 0.0
+ * @max 400
+ * @decimal 1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_MAN_Y_MAX, 200.0f);
+
+/**
+ * Thrust curve in Manual Mode
+ *
+ * This parameter defines how the throttle stick input is mapped to commanded thrust
+ * in Manual/Stabilized flight mode.
+ *
+ * In case the default is used ('Rescale to hover thrust'), the stick input is linearly
+ * rescaled, such that a centered stick corresponds to the hover throttle (see MPC_THR_HOVER).
+ *
+ * Select 'No Rescale' to directly map the stick 1:1 to the output. This can be useful
+ * in case the hover thrust is very low and the default would lead to too much distortion
+ * (e.g. if hover thrust is set to 20%, 80% of the upper thrust range is squeezed into the
+ * upper half of the stick range).
+ *
+ * Note: in case MPC_THR_HOVER is set to 50%, the modes 0 and 1 are the same.
+ *
+ * @value 0 Rescale to hover thrust
+ * @value 1 No Rescale
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_INT32(MPC_THR_CURVE, 0);

@@ -20,6 +20,8 @@
 #include <systemlib/mavlink_log.h>
 #include <controllib/blocks.hpp>
 
+using namespace matrix;
+
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
@@ -36,7 +38,7 @@
 #include <uORB/topics/vehicle_constraints.h>
 #include "Utility/ControlMath.hpp"
 
-#include <lib/FlightTasks/FlightTasks.hpp>
+//#include <lib/FlightTasks/FlightTasks.hpp>
 //#include <modules/mc_pos_control/PositionControl.hpp>
 
 extern "C" __EXPORT int perching_control_main(int argc, char *argv[]);
@@ -106,7 +108,7 @@ private:
     control::BlockDerivative _h_deriv;
     control::BlockDerivative _vel_z_deriv;
     control::BlockDerivative _xmotion_deriv;
-    FlightTasks _flight_tasks;
+    //FlightTasks _flight_tasks;
     //PositionControl _positioncontrol;
 
 
@@ -210,7 +212,7 @@ int MulticopterPerchingControl::parameters_update(bool force)
         ModuleParams::updateParams();
         SuperBlock::updateParams();
 
-        _flight_tasks.handleParameterUpdate();  
+        //_flight_tasks.handleParameterUpdate();  
     }
     
     MPC_TILTMAX_AIR_rad.set(math::radians(MPC_TILTMAX_AIR_rad.get()));
@@ -312,7 +314,7 @@ void MulticopterPerchingControl::run()
 
     _vehicle_control_mode_pub = orb_advertise(ORB_ID(vehicle_control_mode), &_control_mode);
 
-    //orb_set_interval(att_sub, 20); // 50 Hz updates
+    orb_set_interval(att_sub, 20); // 50 Hz updates
 
     parameters_update(true);
     poll_subscriptions();
@@ -343,30 +345,29 @@ void MulticopterPerchingControl::run()
         }
 
         poll_subscriptions();
-        parameters_update(true);
+        parameters_update(false);
 
         //PX4_INFO("SENSOR_DATA:\t%8.4f\t%8.4f\t%8.4f", (double)output_h,(double)xmotion,(double)ymotion);
-        
         //set _dt
         const hrt_abstime time_stamp_current = hrt_absolute_time();
         setDt((time_stamp_current - time_stamp_last_loop) / 1e6f);
         time_stamp_last_loop = time_stamp_current;
 
-        vehicle_constraints_s constraints = _flight_tasks.getConstraints();
-        updateConstraints(constraints);
-
-    /*if (orb_copy(ORB_ID(vehicle_attitude), att_sub, &att) == PX4_OK && PX4_ISFINITE(att.q[0])) {
-               yaw = Eulerf(Quatf(att.q)).psi();
-               roll = Eulerf(Quatf(att.q)).phi();
-               pitch = Eulerf(Quatf(att.q)).theta();
-            }*/
-    /*thrust in D direction*/
-    while((_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PERCH)&&(_control_mode.flag_control_perch_enabled)){
+    if((_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PERCH)&&(_control_mode.flag_control_perch_enabled)){
 
             poll_subscriptions();
             parameters_update(true);
 
-            bool topic_changed = false;
+            vehicle_constraints_s constraints;
+            constraints.speed_xy = MPC_XY_VEL_MAX.get();
+            constraints.speed_up = MPC_Z_VEL_MAX_UP.get();
+            constraints.speed_down = MPC_Z_VEL_MAX_DN.get();
+            constraints.tilt = math::radians(MPC_TILTMAX_AIR_rad.get());
+            constraints.min_distance_to_ground = NAN;
+            constraints.max_distance_to_ground = NAN;
+            updateConstraints(constraints);
+
+            /*bool topic_changed = false;
 
             if (_control_mode.flag_control_manual_enabled) {
                 _control_mode.flag_control_manual_enabled = false;
@@ -391,7 +392,7 @@ void MulticopterPerchingControl::run()
             // publish to vehicle control mode topic if topic is changed
             if (topic_changed) {
                 orb_publish(ORB_ID(vehicle_control_mode), _vehicle_control_mode_pub, &_control_mode);
-            }
+            }*/
 
             H = -output_h - 0.06f; //compensate for roll and pitch, and add offset, in D direction
             vel_z_sp = k_p.get() * (-h_sp.get() - H);//h_sp k_p param;
@@ -462,8 +463,8 @@ void MulticopterPerchingControl::run()
             //PX4_INFO("ofd_err:\t%8.4f\tflow_divergence:\t%8.4f\tthrust_desired_ofd:\t%8.6f\tthrust_setpoint_perch:\t%8.4f\t", (double)ofd_err,(double)flow_divergence,(double)thrust_desired_xy(0),(double)_thr_sp(0));
             /*yaw setpoint control */
             //PX4_INFO("thrust_setpoint:\t%8.4f\t%8.4f\t%8.4f", (double)_thr_sp(0),(double)_thr_sp(1),(double)_thr_sp(2));
-            yaw_sp = yaw + direction_guidence * k_yaw.get(); //k_yaw;
-            yaw_rate_sp = k_yaw_rate.get() * direction_guidence ; //k_yaw_rate
+            yaw_sp = yaw ;//+ direction_guidence * k_yaw.get(); //k_yaw;
+            yaw_rate_sp = 0;//k_yaw_rate.get() * direction_guidence ; //k_yaw_rate
 
 
             _att_sp = ControlMath_Perch::thrustToAttitude(_thr_sp, yaw_sp, yaw);
@@ -481,11 +482,12 @@ void MulticopterPerchingControl::run()
                   _att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
              }
              //PX4_INFO("ATTITUDE_SETPOINT:\t%8.4f\t%8.4f\t%8.4f\t%8.4f", (double)_att_sp.roll_body,(double)_att_sp.pitch_body,(double)_att_sp.yaw_body,(double)_att_sp.thrust_body[2]);
-             px4_usleep(10000);
+             //px4_usleep(10000);
 
         }
+        //px4_usleep(10000);
 
-        bool topic_changed = false;
+        /*bool topic_changed = false;
 
         if (!_control_mode.flag_control_manual_enabled) {
             _control_mode.flag_control_manual_enabled = true;
@@ -502,7 +504,7 @@ void MulticopterPerchingControl::run()
         // publish to vehicle control mode topic if topic is changed
         if (topic_changed) {
             orb_publish(ORB_ID(vehicle_control_mode), _vehicle_control_mode_pub, &_control_mode);
-        }
+        }*/
     }
     orb_unsubscribe(optical_front_sub);
     orb_unsubscribe(optical_downward_sub);
@@ -518,8 +520,8 @@ int MulticopterPerchingControl::task_spawn(int argc, char *argv[])
 {
     _task_id = px4_task_spawn_cmd("perching_control",
                        SCHED_DEFAULT,
-                       SCHED_PRIORITY_POSITION_CONTROL,
-                       1900,
+                       SCHED_PRIORITY_POSITION_CONTROL-1,
+                       1500,
                        (px4_main_t)&run_trampoline,
                        (char *const *)argv);
 

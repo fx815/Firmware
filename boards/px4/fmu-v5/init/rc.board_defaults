@@ -6,7 +6,7 @@
 
 if [ $AUTOCNF = yes ]
 then
-
+param set SYS_MC_EST_GROUP 1
 fi
 
 set LOGGER_BUF 64
